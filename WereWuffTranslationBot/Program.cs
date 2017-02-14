@@ -24,22 +24,22 @@ namespace WereWuffTranslationBot
         private const string startMessage = "You've just sucessfully started the WereWuff Tranlation Bot!\n" +
             "It's still under development though xD";
         private const int flomsId = 267376056;
+        #region Php urls
         private const string closedlistPhpUrl = "http://127.0.0.1/getClosedlist.php";
         private const string underdevPhpUrl = "http://127.0.0.1/getUnderdev.php";
         private const string addClosedlistPhpUrl = "http://127.0.0.1/addClosedlist.php";
+        private const string editClosedlistPhpUrl = "http://127.0.0.1/editClosedlist.php";
+        #endregion
         private const string channelUsername = "@werewufftranstestchannel";
         private const int messageIdClosedlist = 3;
         private const int messageIdUnderdev = 4;
-#if DEBUG
-        private const string sqlString = "user id=test;password=test123;server=localhost:3306;" + 
-            "Trusted_Connection=true;database=mysql; connection timeout=10";
-#endif
 #endregion
         #region Variables
         private static bool running = true;
         private static TelegramBotClient client = new TelegramBotClient(botApiToken);
         private static User me;
         private static Dictionary<long, string> waitingFor = new Dictionary<long, string>();
+        private static Dictionary<long, string> chosenElement = new Dictionary<long, string>();
         #endregion
         #region Main Method
         static void Main(string[] args)
@@ -192,6 +192,7 @@ namespace WereWuffTranslationBot
                     {
                         case ClosedlistKeyboard.ClosedlistAddButtonString:
                         case ClosedlistKeyboard.ClosedlistEditButtonString:
+                        case ClosedlistKeyboard.ClosedlistEditButtonString + "_second":
                         case ClosedlistKeyboard.ClosedlistRemoveButtonString:
                             client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
                                 replyMarkup: ClosedlistKeyboard.Markup);
@@ -223,7 +224,35 @@ namespace WereWuffTranslationBot
                             error);
                         break;
                     case ClosedlistKeyboard.ClosedlistEditButtonString:
-
+                        Dictionary<string, string> dict = getCurrentClosedlistDict();
+                        if (dict.ContainsKey(msg.Text))
+                        {
+                            chosenElement.Add(msg.Chat.Id, msg.Text);
+                            client.SendTextMessageAsync(msg.Chat.Id,
+                                "Please enter the new value in the following format:\n" +
+                                "Language name - Information", replyMarkup: CancelKeyboard.Markup);
+                            waitingFor.Remove(msg.Chat.Id);
+                            waitingFor.Add(msg.Chat.Id,
+                                ClosedlistKeyboard.ClosedlistEditButtonString + "_second");
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "This language doesn't exist. Try again.");
+                        }
+                        break;
+                    case ClosedlistKeyboard.ClosedlistEditButtonString + "_second":
+                        string error2;
+                        if (editClosedlist(chosenElement[msg.Chat.Id], msg.Text, out error2))
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "Language sucessfully edited.");
+                            client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
+                                replyMarkup: ClosedlistKeyboard.Markup);
+                            waitingFor.Remove(msg.Chat.Id);
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, error2);
+                        }
                         break;
                     case ClosedlistKeyboard.ClosedlistRemoveButtonString:
 
@@ -274,7 +303,9 @@ namespace WereWuffTranslationBot
                     waitingFor.Add(msg.Chat.Id, ClosedlistKeyboard.ClosedlistAddButtonString);
                     break;
                 case ClosedlistKeyboard.ClosedlistEditButtonString:
-
+                    ReplyKeyboardMarkup rkm = getClosedlistChooselangMarkup();
+                    client.SendTextMessageAsync(msg.Chat.Id, "Choose a language to edit", replyMarkup: rkm);
+                    waitingFor.Add(msg.Chat.Id, ClosedlistKeyboard.ClosedlistEditButtonString);
                     break;
                 case ClosedlistKeyboard.ClosedlistRemoveButtonString:
 
@@ -307,8 +338,68 @@ namespace WereWuffTranslationBot
         #endregion
         #endregion
 
+        #region Processing Methods
+        private static ReplyKeyboardMarkup getClosedlistChooselangMarkup()
+        {
+            Dictionary<string, string> dict = getCurrentClosedlistDict();
+            KeyboardButton[][] arrayarray = new KeyboardButton[dict.Count + 1][];
+            int i = 0;
+            foreach (KeyValuePair<string, string> kvp in dict)
+            {
+                KeyboardButton b = new KeyboardButton(kvp.Key);
+                KeyboardButton[] row = { b };
+                arrayarray[i] = row;
+                i++;
+            }
+            KeyboardButton b2 = CancelKeyboard.CancelButton;
+            KeyboardButton[] row2 = { b2 };
+            arrayarray[i] = row2;
+            return new ReplyKeyboardMarkup(arrayarray);
+        }
+        #endregion
+
         #region SQL methods
         #region Getters
+        #region Dict getters
+        private static Dictionary<string, string> getCurrentClosedlistDict()
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(closedlistPhpUrl);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string[] result = sr.ReadToEnd().Replace("<br>", "\n").Split('\n');
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                foreach (string s in result)
+                {
+                    string[] a = s.Split(':');
+                    if (a.Length != 2) continue;
+                    dict.Add(a[0], a[1]);
+                }
+                return dict;
+            }
+        }
+
+        private static Dictionary<string,string> getCurrentUnderdevDict()
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(underdevPhpUrl);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string[] result = sr.ReadToEnd().Replace("<br>", "\n").Split('\n');
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                foreach (string s in result)
+                {
+                    string[] a = s.Split(':');
+                    if (a.Length != 2) continue;
+                    dict.Add(a[0], a[1]);
+                }
+                return dict;
+            }
+        }
+        #endregion
+
         private static string getCurrentClosedlist()
         {
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(closedlistPhpUrl);
@@ -382,7 +473,36 @@ namespace WereWuffTranslationBot
         #endregion
 
         #region Edit
-        
+        private static bool editClosedlist(string lang, string process, out string error)
+        {
+            string[] proc = process.Split('-');
+            if (proc.Length != 2)
+            {
+                error = "Failed to edit string, check format";
+                return false;
+            }
+            string newLang = proc[0].Trim();
+            string info = proc[1].Trim();
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(editClosedlistPhpUrl + "?lang=" + lang
+                + "&newlang=" + newLang + "&info=" + info);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string res = sr.ReadToEnd();
+                if (res == "true")
+                {
+                    error = null;
+                    return true;
+                }
+                else
+                {
+                    string[] ret = res.Replace("<br>", "\n").Split('\n');
+                    error = ret[1];
+                    return false;
+                }
+            }
+        }
         #endregion
         #endregion
         #endregion
