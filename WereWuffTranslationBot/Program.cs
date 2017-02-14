@@ -29,6 +29,7 @@ namespace WereWuffTranslationBot
         private const string underdevPhpUrl = "http://127.0.0.1/getUnderdev.php";
         private const string addClosedlistPhpUrl = "http://127.0.0.1/addClosedlist.php";
         private const string editClosedlistPhpUrl = "http://127.0.0.1/editClosedlist.php";
+        private const string removeFromClosedlistPhpUrl = "http://127.0.0.1/removeFromClosedlist.php";
         #endregion
         private const string channelUsername = "@werewufftranstestchannel";
         private const int messageIdClosedlist = 3;
@@ -248,6 +249,7 @@ namespace WereWuffTranslationBot
                             client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
                                 replyMarkup: ClosedlistKeyboard.Markup);
                             waitingFor.Remove(msg.Chat.Id);
+                            chosenElement.Remove(msg.Chat.Id);
                         }
                         else
                         {
@@ -255,7 +257,25 @@ namespace WereWuffTranslationBot
                         }
                         break;
                     case ClosedlistKeyboard.ClosedlistRemoveButtonString:
-
+                        if (getCurrentClosedlistDict().ContainsKey(msg.Text))
+                        {
+                            string error3;
+                            if (removeFromClosedlist(msg.Text, out error3))
+                            {
+                                client.SendTextMessageAsync(msg.Chat.Id, "Language sucessfully removed.");
+                                client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
+                                    replyMarkup: ClosedlistKeyboard.Markup);
+                                waitingFor.Remove(msg.Chat.Id);
+                            }
+                            else
+                            {
+                                client.SendTextMessageAsync(msg.Chat.Id, error3);
+                            }
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "That language does't exist. Try again.");
+                        }
                         break;
                     #endregion
 
@@ -308,7 +328,9 @@ namespace WereWuffTranslationBot
                     waitingFor.Add(msg.Chat.Id, ClosedlistKeyboard.ClosedlistEditButtonString);
                     break;
                 case ClosedlistKeyboard.ClosedlistRemoveButtonString:
-
+                    ReplyKeyboardMarkup rkm2 = getClosedlistChooselangMarkup();
+                    client.SendTextMessageAsync(msg.Chat.Id, "Choose a language to remove", replyMarkup: rkm2);
+                    waitingFor.Add(msg.Chat.Id, ClosedlistKeyboard.ClosedlistRemoveButtonString);
                     break;
                 #endregion
 
@@ -485,6 +507,31 @@ namespace WereWuffTranslationBot
             string info = proc[1].Trim();
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(editClosedlistPhpUrl + "?lang=" + lang
                 + "&newlang=" + newLang + "&info=" + info);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string res = sr.ReadToEnd();
+                if (res == "true")
+                {
+                    error = null;
+                    return true;
+                }
+                else
+                {
+                    string[] ret = res.Replace("<br>", "\n").Split('\n');
+                    error = ret[1];
+                    return false;
+                }
+            }
+        }
+        #endregion
+
+        #region Remove
+        private static bool removeFromClosedlist(string process, out string error)
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(removeFromClosedlistPhpUrl 
+                + "?lang=" + process);
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
             Stream resStream = response.GetResponseStream();
             using (StreamReader sr = new StreamReader(resStream))
