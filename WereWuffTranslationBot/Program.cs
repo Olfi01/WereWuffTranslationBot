@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Data.Entity.SqlServer;
-using System.Threading;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using WereWuffTranslationBot.CustomClasses;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using WereWuffTranslationBot.CustomKeyboards;
 using System.Net;
 using System.IO;
+using Newtonsoft.Json;
+using System.Collections;
 
 namespace WereWuffTranslationBot
 {
@@ -30,10 +27,14 @@ namespace WereWuffTranslationBot
         private const string addClosedlistPhpUrl = "http://127.0.0.1/addClosedlist.php";
         private const string editClosedlistPhpUrl = "http://127.0.0.1/editClosedlist.php";
         private const string removeFromClosedlistPhpUrl = "http://127.0.0.1/removeFromClosedlist.php";
+        private const string addUnderdevPhpUrl = "http://127.0.0.1/addUnderdev.php";
+        private const string editUnderdevPhpUrl = "http://127.0.0.1/editUnderdev.php";
+        private const string removeFromUnderdevPhpUrl = "http://127.0.0.1/removeFromUnderdev.php";
         #endregion
         private const string channelUsername = "@werewufftranstestchannel";
         private const int messageIdClosedlist = 3;
         private const int messageIdUnderdev = 4;
+        private const string adminIdsPath = "adminIds.txt";
 #endregion
         #region Variables
         private static bool running = true;
@@ -41,6 +42,7 @@ namespace WereWuffTranslationBot
         private static User me;
         private static Dictionary<long, string> waitingFor = new Dictionary<long, string>();
         private static Dictionary<long, string> chosenElement = new Dictionary<long, string>();
+        private static ArrayList adminIds;
         #endregion
         #region Main Method
         static void Main(string[] args)
@@ -58,6 +60,11 @@ namespace WereWuffTranslationBot
                 Console.WriteLine(e.ToString() + e.Message + e.StackTrace);
             }
             client.OnUpdate += Client_OnUpdate;
+            if (!System.IO.File.Exists(adminIdsPath))
+            {
+                System.IO.File.Create(adminIdsPath).Close();
+            }
+            adminIds = JsonConvert.DeserializeObject<ArrayList>(System.IO.File.ReadAllText(adminIdsPath));
             #endregion
             while (running)
             {
@@ -117,26 +124,42 @@ namespace WereWuffTranslationBot
                     #region Text messages
                     if (u.Message.Text != null)
                     {
-                        #region Messages containing entities
-                        if (u.Message.Entities.Count != 0)
+                        #region Admin only
+                        if (adminIds.Contains(u.Message.From.Id))
                         {
-                            #region Commands
-                            if (u.Message.Entities[0].Type == MessageEntityType.BotCommand
-                                && u.Message.Entities[0].Offset == 0)
+                            #region Messages containing entities
+                            if (u.Message.Entities.Count != 0)
                             {
-                                #region Commands only
-                                if (u.Message.Entities[0].Length == u.Message.Text.Length)
+                                #region Commands
+                                if (u.Message.Entities[0].Type == MessageEntityType.BotCommand
+                                    && u.Message.Entities[0].Offset == 0)
                                 {
-                                    handleCommandOnly(msg: u.Message, cmd: u.Message.Text);
+                                    #region Commands only
+                                    if (u.Message.Entities[0].Length == u.Message.Text.Length)
+                                    {
+                                        handleCommandOnly(msg: u.Message, cmd: u.Message.Text);
+                                    }
+                                    #endregion
+                                    #region Commands with arguments
+                                    else
+                                    {
+                                        handleCommandArgs(msg: u.Message, cmd: u.Message.Text.Split(' ')[0]);
+                                    }
+                                    #endregion
                                 }
                                 #endregion
                             }
                             #endregion
-                        }
-                        #endregion
 
-                        #region Text messages handling
-                        handleTextMessage(u.Message);
+                            #region Text messages handling
+                            handleTextMessage(u.Message);
+                            #endregion
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(u.Message.Chat.Id,
+                                "You are not allowed to use this bot");
+                        }
                         #endregion
                     }
                     #endregion
@@ -179,6 +202,28 @@ namespace WereWuffTranslationBot
             }
         }
         #endregion
+
+        #region Commands with arguments
+        private static void handleCommandArgs(Message msg, string cmd)
+        {
+            switch (cmd)
+            {
+                case "/addadmin":
+                case "/addadmin" + botUsername:
+                    if (msg.From.Id == flomsId)
+                    {
+                        string[] args = msg.Text.Split(' ');
+                        addAdmin(args[1]);
+                        client.SendTextMessageAsync(msg.Chat.Id, "Admin added");
+                    }
+                    else
+                    {
+                        client.SendTextMessageAsync(msg.Chat.Id, "You are not Flom!");
+                    }
+                    break;
+            }
+        }
+        #endregion
         #endregion
 
         #region Text messages
@@ -186,6 +231,7 @@ namespace WereWuffTranslationBot
         {
             if (waitingFor.ContainsKey(msg.Chat.Id))
             {
+                #region Waiting for something
                 if (msg.Text == CancelKeyboard.CancelButtonString)
                 {
                     #region Return to old keyboard
@@ -207,6 +253,7 @@ namespace WereWuffTranslationBot
                     }
                     #endregion
                     waitingFor.Remove(msg.Chat.Id);
+                    if (chosenElement.ContainsKey(msg.Chat.Id)) chosenElement.Remove(msg.Chat.Id);
                     return;
                 }
                 switch (waitingFor[msg.Chat.Id])
@@ -281,17 +328,68 @@ namespace WereWuffTranslationBot
 
                     #region Underdev
                     case UnderdevKeyboard.UnderdevAddButtonString:
-
+                        string error4;
+                        if (addToUnderdev(msg.Text, out error4))
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "Language added.");
+                            client.SendTextMessageAsync(msg.Chat.Id, getCurrentUnderdev(),
+                                replyMarkup: UnderdevKeyboard.Markup);
+                            waitingFor.Remove(msg.Chat.Id);
+                        }
+                        else client.SendTextMessageAsync(msg.Chat.Id,
+                            error4);
                         break;
                     case UnderdevKeyboard.UnderdevEditButtonString:
-
+                        if (getCurrentUnderdevDict().ContainsKey(msg.Text))
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id,
+                                "Send me the new information in the following format:\n" +
+                                "Language name - Information", replyMarkup: CancelKeyboard.Markup);
+                            waitingFor.Remove(msg.Chat.Id);
+                            waitingFor.Add(msg.Chat.Id, UnderdevKeyboard.UnderdevEditButtonString + "_second");
+                            chosenElement.Add(msg.Chat.Id, msg.Text);
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "That language doesn't exist. Try again.");
+                        }
+                        break;
+                    case UnderdevKeyboard.UnderdevEditButtonString + "_second":
+                        string error5;
+                        if (editUnderdev(chosenElement[msg.Chat.Id], msg.Text, out error5))
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, "Language edited.");
+                            client.SendTextMessageAsync(msg.Chat.Id, getCurrentUnderdev(),
+                                replyMarkup: UnderdevKeyboard.Markup);
+                            waitingFor.Remove(msg.Chat.Id);
+                            chosenElement.Remove(msg.Chat.Id);
+                        }
+                        else
+                        {
+                            client.SendTextMessageAsync(msg.Chat.Id, error5);
+                        }
                         break;
                     case UnderdevKeyboard.UnderdevRemoveButtonString:
-
+                        if (getCurrentUnderdevDict().ContainsKey(msg.Text))
+                        {
+                            string error6;
+                            if (removeFromUnderdev(msg.Text, out error6))
+                            {
+                                client.SendTextMessageAsync(msg.Chat.Id, "Laguage removed.");
+                                client.SendTextMessageAsync(msg.Chat.Id, getCurrentUnderdev(),
+                                replyMarkup: UnderdevKeyboard.Markup);
+                                waitingFor.Remove(msg.Chat.Id);
+                            }
+                            else
+                            {
+                                client.SendTextMessageAsync(msg.Chat.Id, error6);
+                            }
+                        }
                         break;
                     #endregion
                 }
                 return;
+                #endregion
             }
             switch (msg.Text)
             {
@@ -336,13 +434,21 @@ namespace WereWuffTranslationBot
 
                 #region Underdev keyboard
                 case UnderdevKeyboard.UnderdevAddButtonString:
-
+                    client.SendTextMessageAsync(msg.Chat.Id,
+                        "Send me the language you want to add in the following format: \n" +
+                        "Language name - Information",
+                        replyMarkup: CancelKeyboard.Markup);
+                    waitingFor.Add(msg.Chat.Id, UnderdevKeyboard.UnderdevAddButtonString);
                     break;
                 case UnderdevKeyboard.UnderdevEditButtonString:
-
+                    ReplyKeyboardMarkup rkm3 = getUnderdevChooselangMarkup();
+                    client.SendTextMessageAsync(msg.Chat.Id, "Choose a language to edit", replyMarkup: rkm3);
+                    waitingFor.Add(msg.Chat.Id, UnderdevKeyboard.UnderdevEditButtonString);
                     break;
                 case UnderdevKeyboard.UnderdevRemoveButtonString:
-
+                    ReplyKeyboardMarkup rkm4 = getUnderdevChooselangMarkup();
+                    client.SendTextMessageAsync(msg.Chat.Id, "Choose a language to remove", replyMarkup: rkm4);
+                    waitingFor.Add(msg.Chat.Id, UnderdevKeyboard.UnderdevRemoveButtonString);
                     break;
                 #endregion
             }
@@ -377,6 +483,36 @@ namespace WereWuffTranslationBot
             KeyboardButton[] row2 = { b2 };
             arrayarray[i] = row2;
             return new ReplyKeyboardMarkup(arrayarray);
+        }
+
+        private static ReplyKeyboardMarkup getUnderdevChooselangMarkup()
+        {
+            Dictionary<string, string> dict = getCurrentUnderdevDict();
+            KeyboardButton[][] arrayarray = new KeyboardButton[dict.Count + 1][];
+            int i = 0;
+            foreach (KeyValuePair<string, string> kvp in dict)
+            {
+                KeyboardButton b = new KeyboardButton(kvp.Key);
+                KeyboardButton[] row = { b };
+                arrayarray[i] = row;
+                i++;
+            }
+            KeyboardButton b2 = CancelKeyboard.CancelButton;
+            KeyboardButton[] row2 = { b2 };
+            arrayarray[i] = row2;
+            return new ReplyKeyboardMarkup(arrayarray);
+        }
+
+        private static void addAdmin(string id)
+        {
+            int idInt = Convert.ToInt32(id);
+            adminIds.Add(idInt);
+            writeAdminIdsFile();
+        }
+
+        private static void writeAdminIdsFile()
+        {
+            System.IO.File.WriteAllText(adminIdsPath, JsonConvert.SerializeObject(adminIds));
         }
         #endregion
 
@@ -531,6 +667,106 @@ namespace WereWuffTranslationBot
         private static bool removeFromClosedlist(string process, out string error)
         {
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(removeFromClosedlistPhpUrl 
+                + "?lang=" + process);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string res = sr.ReadToEnd();
+                if (res == "true")
+                {
+                    error = null;
+                    return true;
+                }
+                else
+                {
+                    string[] ret = res.Replace("<br>", "\n").Split('\n');
+                    error = ret[1];
+                    return false;
+                }
+            }
+        }
+        #endregion
+        #endregion
+
+        #region Underdev
+        #region Add
+        private static bool addToUnderdev(string process, out string error)
+        {
+            string[] proc = process.Split('-');
+            if (proc.Length != 2)
+            {
+                error = "Failed to add string, check format";
+                return false;
+            }
+            string lang = proc[0].Trim();
+            string info = proc[1].Trim();
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(addUnderdevPhpUrl + "?lang=" + lang
+                + "&info=" + info);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string res = sr.ReadToEnd();
+                if (res == "true")
+                {
+                    error = null;
+                    return true;
+                }
+                else
+                {
+                    string[] ret = res.Replace("<br>", "\n").Split('\n');
+                    if (ret[0] == "1062")
+                    {
+                        error = "Failed to add language entry, it is already present. Try again.";
+                    }
+                    else
+                    {
+                        error = ret[1];
+                    }
+                    return false;
+                }
+            }
+        }
+        #endregion
+
+        #region Edit
+        private static bool editUnderdev(string lang, string process, out string error)
+        {
+            string[] proc = process.Split('-');
+            if (proc.Length != 2)
+            {
+                error = "Failed to edit string, check format";
+                return false;
+            }
+            string newLang = proc[0].Trim();
+            string info = proc[1].Trim();
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(editUnderdevPhpUrl + "?lang=" + lang
+                + "&newlang=" + newLang + "&info=" + info);
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream resStream = response.GetResponseStream();
+            using (StreamReader sr = new StreamReader(resStream))
+            {
+                string res = sr.ReadToEnd();
+                if (res == "true")
+                {
+                    error = null;
+                    return true;
+                }
+                else
+                {
+                    string[] ret = res.Replace("<br>", "\n").Split('\n');
+                    error = ret[1];
+                    return false;
+                }
+            }
+        }
+        #endregion
+
+        #region Remove
+        private static bool removeFromUnderdev(string process, out string error)
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(removeFromUnderdevPhpUrl
                 + "?lang=" + process);
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
             Stream resStream = response.GetResponseStream();
