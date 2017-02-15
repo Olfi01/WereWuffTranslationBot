@@ -35,7 +35,7 @@ namespace WereWuffTranslationBot
         private const string channelUsername = "@werewufftranstestchannel";
         private const int messageIdClosedlist = 3;
         private const int messageIdUnderdev = 4;
-#elif RELEASE
+#else
         private const string channelUsername = "@werewolftranslation";
         private const int messageIdClosedlist = 14;
         private const int messageIdUnderdev = 15;
