@@ -65,8 +65,9 @@ namespace WereWuffTranslationBot
                 System.IO.File.Create(adminIdsPath).Close();
             }
             adminIds = JsonConvert.DeserializeObject<ArrayList>(System.IO.File.ReadAllText(adminIdsPath));
-            #endregion
-            while (running)
+            if (adminIds == null) { adminIds = new ArrayList(); adminIds.Add(flomsId); }
+                #endregion
+                while (running)
             {
                 Console.WriteLine("Enter command");
                 string input = Console.ReadLine();
