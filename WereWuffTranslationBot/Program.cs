@@ -31,9 +31,15 @@ namespace WereWuffTranslationBot
         private const string editUnderdevPhpUrl = "http://127.0.0.1/editUnderdev.php";
         private const string removeFromUnderdevPhpUrl = "http://127.0.0.1/removeFromUnderdev.php";
         #endregion
+#if DEBUG
         private const string channelUsername = "@werewufftranstestchannel";
         private const int messageIdClosedlist = 3;
         private const int messageIdUnderdev = 4;
+#elif RELEASE
+        private const string channelUsername = "@werewolftranslation";
+        private const int messageIdClosedlist = 14;
+        private const int messageIdUnderdev = 15;
+#endif
         private const string adminIdsPath = "adminIds.txt";
         private const string closedlistHeader = "▶️ *LIST OF CLOSED LANGFILES* ◀️\n"+
                                                 "_(by alphabetical order)_\n"+
