@@ -42,7 +42,7 @@ namespace WereWuffTranslationBot
         private static User me;
         private static Dictionary<long, string> waitingFor = new Dictionary<long, string>();
         private static Dictionary<long, string> chosenElement = new Dictionary<long, string>();
-        private static ArrayList adminIds;
+        private static ArrayList adminIds = new ArrayList();
         #endregion
         #region Main Method
         static void Main(string[] args)
