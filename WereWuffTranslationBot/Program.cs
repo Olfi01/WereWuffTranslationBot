@@ -137,7 +137,7 @@ namespace WereWuffTranslationBot
                     if (u.Message.Text != null)
                     {
                         #region Admin only
-                        if (adminIds.Contains(u.Message.From.Id))
+                        if (getAdmin(u.Message.From))
                         {
                             #region Messages containing entities
                             if (u.Message.Entities.Count != 0)
@@ -523,6 +523,16 @@ namespace WereWuffTranslationBot
             int idInt = Convert.ToInt32(id);
             adminIds.Add(idInt);
             writeAdminIdsFile();
+        }
+
+        private static bool getAdmin(User u)
+        {
+            int id = u.Id;
+            foreach (long i in adminIds)
+            {
+                if (i == id) return true;
+            }
+            return false;
         }
 
         private static void writeAdminIdsFile()
