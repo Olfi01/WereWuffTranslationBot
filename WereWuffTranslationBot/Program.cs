@@ -10,6 +10,7 @@ using System.Net;
 using System.IO;
 using Newtonsoft.Json;
 using System.Collections;
+using System.Threading;
 
 namespace WereWuffTranslationBot
 {
@@ -22,14 +23,14 @@ namespace WereWuffTranslationBot
             "It's still under development though xD";
         private const int flomsId = 267376056;
         #region Php urls
-        private const string closedlistPhpUrl = "http://127.0.0.1/getClosedlist.php";
-        private const string underdevPhpUrl = "http://127.0.0.1/getUnderdev.php";
-        private const string addClosedlistPhpUrl = "http://127.0.0.1/addClosedlist.php";
-        private const string editClosedlistPhpUrl = "http://127.0.0.1/editClosedlist.php";
-        private const string removeFromClosedlistPhpUrl = "http://127.0.0.1/removeFromClosedlist.php";
-        private const string addUnderdevPhpUrl = "http://127.0.0.1/addUnderdev.php";
-        private const string editUnderdevPhpUrl = "http://127.0.0.1/editUnderdev.php";
-        private const string removeFromUnderdevPhpUrl = "http://127.0.0.1/removeFromUnderdev.php";
+        private const string closedlistPhpUrl = "http://84.200.85.34/getClosedlist.php";
+        private const string underdevPhpUrl = "http://84.200.85.34/getUnderdev.php";
+        private const string addClosedlistPhpUrl = "http://84.200.85.34/addClosedlist.php";
+        private const string editClosedlistPhpUrl = "http://84.200.85.34/editClosedlist.php";
+        private const string removeFromClosedlistPhpUrl = "http://84.200.85.34/removeFromClosedlist.php";
+        private const string addUnderdevPhpUrl = "http://84.200.85.34/addUnderdev.php";
+        private const string editUnderdevPhpUrl = "http://84.200.85.34/editUnderdev.php";
+        private const string removeFromUnderdevPhpUrl = "http://84.200.85.34/removeFromUnderdev.php";
         #endregion
 #if DEBUG
         private const string channelUsername = "@werewufftranstestchannel";
@@ -77,8 +78,12 @@ namespace WereWuffTranslationBot
             }
             adminIds = JsonConvert.DeserializeObject<ArrayList>(System.IO.File.ReadAllText(adminIdsPath));
             if (adminIds == null) { adminIds = new ArrayList(); adminIds.Add(flomsId); }
-                #endregion
-                while (running)
+            Console.WriteLine("Nullifying offline updates (bug source)");
+            Task<Update[]> t = client.GetUpdatesAsync();
+            t.Wait();
+            if (t.Result.Length > 0) client.GetUpdatesAsync(t.Result[t.Result.Length - 1].Id);
+            #endregion
+            while (running)
             {
                 Console.WriteLine("Enter command");
                 string input = Console.ReadLine();
@@ -114,6 +119,7 @@ namespace WereWuffTranslationBot
                         }
                         running = false;
                         Console.WriteLine("Exiting...");
+                        Environment.Exit(0);
                         break;
                     default:
                         Console.WriteLine("Command not found");
@@ -527,7 +533,7 @@ namespace WereWuffTranslationBot
 
         private static bool getAdmin(User u)
         {
-            int id = u.Id;
+            long id = u.Id;
             foreach (long i in adminIds)
             {
                 if (i == id) return true;
