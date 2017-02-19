@@ -17,7 +17,8 @@ namespace WereWuffTranslationBot
     class Program
     {
         #region Constants
-        private const string botApiToken = "355243674:AAEs0O6xDbs3k1fJCb2s2MAn0_7ZID7Rp7s";
+        private static readonly string tokenFile = Environment.CurrentDirectory + "\\token.giti";
+        private static readonly string botApiToken = getApiToken();
         private const string botUsername = "@werewufftransbot";
         private const string startMessage = "You've just sucessfully started the WereWuff Tranlation Bot!\n" +
             "It's still under development though xD";
@@ -462,6 +463,11 @@ namespace WereWuffTranslationBot
         #endregion
 
         #region Processing Methods
+        private static string getApiToken()
+        {
+            return System.IO.File.ReadAllText(tokenFile);
+        }
+
         private static void refreshMessages(Message msg)
         {
             client.EditMessageTextAsync(channelUsername, messageIdClosedlist, getCurrentClosedlist(),
