@@ -38,8 +38,8 @@ namespace WereWuffTranslationBot
         private const int messageIdUnderdev = 4;
 #else
         private const string channelUsername = "@werewolftranslation";
-        private const int messageIdClosedlist = 14;
-        private const int messageIdUnderdev = 15;
+        private const int messageIdClosedlist = 41;
+        private const int messageIdUnderdev = 42;
 #endif
         private const string adminIdsPath = "adminIds.txt";
         private const string closedlistHeader = "▶️ <b>LIST OF CLOSED LANGFILES</b> ◀️\n"+
