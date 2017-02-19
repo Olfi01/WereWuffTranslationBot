@@ -258,6 +258,7 @@ namespace WereWuffTranslationBot
                             client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
                                 replyMarkup: ClosedlistKeyboard.Markup, parseMode: ParseMode.Html);
                             waitingFor.Remove(msg.Chat.Id);
+                            refreshMessages(msg);
                         }
                         else client.SendTextMessageAsync(msg.Chat.Id,
                             error);
@@ -288,6 +289,7 @@ namespace WereWuffTranslationBot
                                 replyMarkup: ClosedlistKeyboard.Markup, parseMode: ParseMode.Html);
                             waitingFor.Remove(msg.Chat.Id);
                             chosenElement.Remove(msg.Chat.Id);
+                            refreshMessages(msg);
                         }
                         else
                         {
@@ -304,6 +306,7 @@ namespace WereWuffTranslationBot
                                 client.SendTextMessageAsync(msg.Chat.Id, getCurrentClosedlist(),
                                     replyMarkup: ClosedlistKeyboard.Markup, parseMode: ParseMode.Html);
                                 waitingFor.Remove(msg.Chat.Id);
+                                refreshMessages(msg);
                             }
                             else
                             {
@@ -326,6 +329,7 @@ namespace WereWuffTranslationBot
                             client.SendTextMessageAsync(msg.Chat.Id, getCurrentUnderdev(),
                                 replyMarkup: UnderdevKeyboard.Markup, parseMode: ParseMode.Html);
                             waitingFor.Remove(msg.Chat.Id);
+                            refreshMessages(msg);
                         }
                         else client.SendTextMessageAsync(msg.Chat.Id,
                             error4);
@@ -354,6 +358,7 @@ namespace WereWuffTranslationBot
                                 replyMarkup: UnderdevKeyboard.Markup, parseMode: ParseMode.Html);
                             waitingFor.Remove(msg.Chat.Id);
                             chosenElement.Remove(msg.Chat.Id);
+                            refreshMessages(msg);
                         }
                         else
                         {
@@ -370,6 +375,7 @@ namespace WereWuffTranslationBot
                                 client.SendTextMessageAsync(msg.Chat.Id, getCurrentUnderdev(),
                                 replyMarkup: UnderdevKeyboard.Markup, parseMode: ParseMode.Html);
                                 waitingFor.Remove(msg.Chat.Id);
+                                refreshMessages(msg);
                             }
                             else
                             {
@@ -394,11 +400,7 @@ namespace WereWuffTranslationBot
                         replyMarkup: UnderdevKeyboard.Markup, parseMode: ParseMode.Html);
                     break;
                 case StartKeyboard.RefreshChannelMessageButtonString:
-                    client.EditMessageTextAsync(channelUsername, messageIdClosedlist, getCurrentClosedlist(), 
-                        parseMode: ParseMode.Html);
-                    client.EditMessageTextAsync(channelUsername, messageIdUnderdev, getCurrentUnderdev(), 
-                        parseMode: ParseMode.Html);
-                    client.SendTextMessageAsync(msg.Chat.Id, "Message refreshed");
+                    refreshMessages(msg);
                     break;
                 case StartKeyboard.BackToStartKeyboardButtonString:
                     client.SendTextMessageAsync(msg.Chat.Id, "Main menu", replyMarkup: StartKeyboard.Markup);
@@ -460,6 +462,15 @@ namespace WereWuffTranslationBot
         #endregion
 
         #region Processing Methods
+        private static void refreshMessages(Message msg)
+        {
+            client.EditMessageTextAsync(channelUsername, messageIdClosedlist, getCurrentClosedlist(),
+                        parseMode: ParseMode.Html);
+            client.EditMessageTextAsync(channelUsername, messageIdUnderdev, getCurrentUnderdev(),
+                parseMode: ParseMode.Html);
+            client.SendTextMessageAsync(msg.Chat.Id, "Message refreshed");
+        }
+
         private static ReplyKeyboardMarkup getClosedlistChooselangMarkup()
         {
             Dictionary<string, string> dict = getCurrentClosedlistDict();
