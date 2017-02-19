@@ -38,8 +38,8 @@ namespace WereWuffTranslationBot
         private const int messageIdUnderdev = 4;
 #else
         private const string channelUsername = "@werewolftranslation";
-        private const int messageIdClosedlist = 41;
-        private const int messageIdUnderdev = 42;
+        private const int messageIdClosedlist = 51;
+        private const int messageIdUnderdev = 52;
 #endif
         private const string adminIdsPath = "adminIds.txt";
         private const string closedlistHeader = "▶️ <b>LIST OF CLOSED LANGFILES</b> ◀️\n"+
@@ -54,7 +54,6 @@ namespace WereWuffTranslationBot
         private static User me;
         private static Dictionary<long, string> waitingFor = new Dictionary<long, string>();
         private static Dictionary<long, string> chosenElement = new Dictionary<long, string>();
-        private static ArrayList adminIds = new ArrayList();
         #endregion
         #region Main Method
         static void Main(string[] args)
@@ -72,12 +71,6 @@ namespace WereWuffTranslationBot
                 Console.WriteLine(e.ToString() + e.Message + e.StackTrace);
             }
             client.OnUpdate += Client_OnUpdate;
-            if (!System.IO.File.Exists(adminIdsPath))
-            {
-                System.IO.File.Create(adminIdsPath).Close();
-            }
-            adminIds = JsonConvert.DeserializeObject<ArrayList>(System.IO.File.ReadAllText(adminIdsPath));
-            if (adminIds == null) { adminIds = new ArrayList(); adminIds.Add(flomsId); }
             Console.WriteLine("Nullifying offline updates (bug source)");
             Task<Update[]> t = client.GetUpdatesAsync();
             t.Wait();
@@ -142,10 +135,7 @@ namespace WereWuffTranslationBot
                     #region Text messages
                     if (u.Message.Text != null)
                     {
-                        #region Admin only
-                        if (getAdmin(u.Message.From))
-                        {
-                            #region Messages containing entities
+                        #region Messages containing entities
                             if (u.Message.Entities.Count != 0)
                             {
                                 #region Commands
@@ -169,16 +159,9 @@ namespace WereWuffTranslationBot
                             }
                             #endregion
 
-                            #region Text messages handling
+                        #region Text messages handling
                             handleTextMessage(u.Message);
                             #endregion
-                        }
-                        else
-                        {
-                            client.SendTextMessageAsync(u.Message.Chat.Id,
-                                "You are not allowed to use this bot");
-                        }
-                        #endregion
                     }
                     #endregion
 
@@ -226,18 +209,7 @@ namespace WereWuffTranslationBot
         {
             switch (cmd)
             {
-                case "/addadmin":
-                case "/addadmin" + botUsername:
-                    if (msg.From.Id == flomsId)
-                    {
-                        string[] args = msg.Text.Split(' ');
-                        addAdmin(args[1]);
-                        client.SendTextMessageAsync(msg.Chat.Id, "Admin added");
-                    }
-                    else
-                    {
-                        client.SendTextMessageAsync(msg.Chat.Id, "You are not Flom!");
-                    }
+                default:
                     break;
             }
         }
@@ -522,28 +494,6 @@ namespace WereWuffTranslationBot
             KeyboardButton[] row2 = { b2 };
             arrayarray[i] = row2;
             return new ReplyKeyboardMarkup(arrayarray);
-        }
-
-        private static void addAdmin(string id)
-        {
-            int idInt = Convert.ToInt32(id);
-            adminIds.Add(idInt);
-            writeAdminIdsFile();
-        }
-
-        private static bool getAdmin(User u)
-        {
-            long id = u.Id;
-            foreach (long i in adminIds)
-            {
-                if (i == id) return true;
-            }
-            return false;
-        }
-
-        private static void writeAdminIdsFile()
-        {
-            System.IO.File.WriteAllText(adminIdsPath, JsonConvert.SerializeObject(adminIds));
         }
         #endregion
 
